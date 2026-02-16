@@ -1,0 +1,10 @@
+INSERT INTO inventory (product_id, product_name, quantity, reserved_quantity, available_quantity, last_updated) VALUES ('PROD-001', 'Laptop', 50, 5, 45, CURRENT_TIMESTAMP);
+INSERT INTO inventory (product_id, product_name, quantity, reserved_quantity, available_quantity, last_updated) VALUES ('PROD-002', 'Mouse', 200, 10, 190, CURRENT_TIMESTAMP);
+INSERT INTO inventory (product_id, product_name, quantity, reserved_quantity, available_quantity, last_updated) VALUES ('PROD-003', 'Keyboard', 150, 8, 142, CURRENT_TIMESTAMP);
+INSERT INTO inventory (product_id, product_name, quantity, reserved_quantity, available_quantity, last_updated) VALUES ('PROD-004', 'Monitor', 30, 3, 27, CURRENT_TIMESTAMP);
+INSERT INTO inventory (product_id, product_name, quantity, reserved_quantity, available_quantity, last_updated) VALUES ('PROD-005', 'Headset', 100, 15, 85, CURRENT_TIMESTAMP);
+INSERT INTO inventory (product_id, product_name, quantity, reserved_quantity, available_quantity, last_updated) VALUES ('PROD-006', 'Webcam', 8, 2, 6, CURRENT_TIMESTAMP);
+INSERT INTO inventory (product_id, product_name, quantity, reserved_quantity, available_quantity, last_updated) VALUES ('PROD-007', 'USB Cable', 500, 50, 450, CURRENT_TIMESTAMP);
+INSERT INTO inventory (product_id, product_name, quantity, reserved_quantity, available_quantity, last_updated) VALUES ('PROD-008', 'HDMI Cable', 300, 20, 280, CURRENT_TIMESTAMP);
+INSERT INTO inventory (product_id, product_name, quantity, reserved_quantity, available_quantity, last_updated) VALUES ('PROD-009', 'Docking Station', 5, 1, 4, CURRENT_TIMESTAMP);
+INSERT INTO inventory (product_id, product_name, quantity, reserved_quantity, available_quantity, last_updated) VALUES ('PROD-010', 'External SSD', 12, 3, 9, CURRENT_TIMESTAMP);

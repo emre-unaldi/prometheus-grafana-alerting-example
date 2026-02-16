@@ -1,0 +1,308 @@
+# Prometheus Alert Kuralları - Default Metrikler
+# Sadece Spring Boot Actuator/Micrometer'ın default olarak sunduğu metrikler kullanılır
+# Custom metrik gerekmez
+
+groups:
+
+  # ====================================================================
+  # GROUP 1: SERVICE AVAILABILITY (Servis Erişilebilirlik)
+  # ====================================================================
+  - name: service_availability
+    interval: 30s
+    rules:
+
+      # Servis çalışmıyor
+      - alert: ServiceDown
+        expr: up{job=~"order-service|inventory-service|payment-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is DOWN"
+          description: "{{ $labels.job }} has been down for more than 1 minute. Immediate action required!"
+          impact: "Users cannot access {{ $labels.job }}"
+          action: "Check service logs and restart if necessary"
+
+      # Servis flapping (10dk'da 3+ kez down/up)
+      - alert: ServiceFlapping
+        expr: changes(up{job=~"order-service|inventory-service|payment-service"}[10m]) > 2
+        labels:
+          severity: warning
+        annotations:
+          summary: "Service {{ $labels.job }} is flapping"
+          description: "{{ $labels.job }} has changed state {{ $value }} times in the last 10 minutes"
+          impact: "Service instability - intermittent failures"
+          action: "Check service logs for crash loops or resource exhaustion"
+
+  # ====================================================================
+  # GROUP 2: HTTP REQUESTS & ERROR RATES (HTTP İstekleri & Hata Oranları)
+  # ====================================================================
+  - name: http_requests
+    interval: 30s
+    rules:
+
+      # Yüksek HTTP 5xx hata oranı
+      - alert: HighHTTP5xxRate
+        expr: |
+          (
+            rate(http_server_requests_seconds_count{
+              status=~"5..",
+              job=~"order-service|inventory-service|payment-service"
+            }[5m])
+            /
+            rate(http_server_requests_seconds_count{
+              job=~"order-service|inventory-service|payment-service"
+            }[5m])
+          ) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP 5xx error rate on {{ $labels.job }}"
+          description: "5xx error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+          impact: "Service is experiencing internal server errors"
+          action: "Check application logs immediately"
+
+      # Yüksek HTTP 4xx hata oranı
+      - alert: HighHTTP4xxRate
+        expr: |
+          (
+            rate(http_server_requests_seconds_count{
+              status=~"4..",
+              job=~"order-service|inventory-service|payment-service"
+            }[5m])
+            /
+            rate(http_server_requests_seconds_count{
+              job=~"order-service|inventory-service|payment-service"
+            }[5m])
+          ) > 0.20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP 4xx error rate on {{ $labels.job }}"
+          description: "4xx error rate is {{ $value | humanizePercentage }} (threshold: 20%)"
+          impact: "Many client errors - possible API misuse or validation issues"
+          action: "Review API documentation and client implementations"
+
+      # Yavaş yanıt süresi (p95 > 2s)
+      - alert: SlowResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_server_requests_seconds_bucket{
+              job=~"order-service|inventory-service|payment-service"
+            }[5m])
+          ) > 2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow response time on {{ $labels.job }}"
+          description: "95th percentile response time is {{ $value | humanizeDuration }} (threshold: 2s)"
+          impact: "Poor user experience - customers waiting too long"
+          action: "Check for slow queries, external service latency, or resource bottlenecks"
+
+      # Çok yavaş yanıt süresi (p95 > 5s)
+      - alert: VerySlowResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_server_requests_seconds_bucket{
+              job=~"order-service|inventory-service|payment-service"
+            }[5m])
+          ) > 5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Very slow response time on {{ $labels.job }}"
+          description: "95th percentile response time is {{ $value | humanizeDuration }} (threshold: 5s)"
+          impact: "Service is nearly unresponsive"
+          action: "URGENT: Investigate service health, check for deadlocks or resource exhaustion"
+
+      # Hiç istek gelmiyor
+      - alert: NoRequestsReceived
+        expr: |
+          rate(http_server_requests_seconds_count{
+            job=~"order-service|inventory-service|payment-service"
+          }[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No requests received by {{ $labels.job }}"
+          description: "{{ $labels.job }} has not received any requests in the last 5 minutes"
+          action: "Check if service is accessible and upstream services are routing correctly"
+
+  # ====================================================================
+  # GROUP 3: JVM RESOURCE USAGE (CPU & Memory)
+  # ====================================================================
+  - name: jvm_resources
+    interval: 30s
+    rules:
+
+      # Yüksek CPU kullanımı
+      - alert: HighCPUUsage
+        expr: |
+          process_cpu_usage{job=~"order-service|inventory-service|payment-service"} > 0.80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.job }}"
+          description: "CPU usage is {{ $value | humanizePercentage }} (threshold: 80%)"
+          impact: "Service performance degradation"
+          action: "Check for CPU-intensive operations, consider horizontal scaling"
+
+      # Kritik CPU kullanımı
+      - alert: CriticalCPUUsage
+        expr: |
+          process_cpu_usage{job=~"order-service|inventory-service|payment-service"} > 0.95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL CPU usage on {{ $labels.job }}"
+          description: "CPU usage is {{ $value | humanizePercentage }} (threshold: 95%)"
+          impact: "Service may become unresponsive"
+          action: "URGENT: Scale service immediately or investigate CPU spike"
+
+      # Yüksek Heap Memory kullanımı
+      - alert: HighHeapMemory
+        expr: |
+          (
+            jvm_memory_used_bytes{job=~"order-service|inventory-service|payment-service", area="heap"}
+            /
+            jvm_memory_max_bytes{job=~"order-service|inventory-service|payment-service", area="heap"}
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High heap memory usage on {{ $labels.job }}"
+          description: "Heap memory usage is {{ $value | humanizePercentage }} (threshold: 85%)"
+          impact: "Risk of OutOfMemoryError"
+          action: "Check for memory leaks, review heap dump, consider increasing heap size"
+
+      # Kritik Heap Memory kullanımı
+      - alert: CriticalHeapMemory
+        expr: |
+          (
+            jvm_memory_used_bytes{job=~"order-service|inventory-service|payment-service", area="heap"}
+            /
+            jvm_memory_max_bytes{job=~"order-service|inventory-service|payment-service", area="heap"}
+          ) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL heap memory usage on {{ $labels.job }}"
+          description: "Heap memory usage is {{ $value | humanizePercentage }} (threshold: 95%)"
+          impact: "Service is about to crash with OutOfMemoryError"
+          action: "URGENT: Restart service or increase heap size immediately"
+
+      # Yüksek System CPU kullanımı
+      - alert: HighSystemCPU
+        expr: |
+          system_cpu_usage{job=~"order-service|inventory-service|payment-service"} > 0.90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High system CPU usage on {{ $labels.job }}"
+          description: "System CPU usage is {{ $value | humanizePercentage }} (threshold: 90%)"
+          impact: "Host machine is under heavy load"
+          action: "Check other processes on the host, consider scaling"
+
+  # ====================================================================
+  # GROUP 4: JVM THREADS & GC
+  # ====================================================================
+  - name: jvm_threads_gc
+    interval: 30s
+    rules:
+
+      # Yüksek thread sayısı
+      - alert: HighThreadCount
+        expr: |
+          jvm_threads_live_threads{job=~"order-service|inventory-service|payment-service"} > 200
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High thread count on {{ $labels.job }}"
+          description: "Live thread count is {{ $value }} (threshold: 200)"
+          impact: "Thread pool exhaustion risk"
+          action: "Check for thread leaks or connection pool issues"
+
+      # Thread deadlock riski
+      - alert: ThreadDeadlockRisk
+        expr: |
+          jvm_threads_states_threads{job=~"order-service|inventory-service|payment-service", state="blocked"} > 10
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Thread deadlock risk on {{ $labels.job }}"
+          description: "{{ $value }} threads are in BLOCKED state (threshold: 10)"
+          impact: "Service may become unresponsive due to thread contention"
+          action: "Take thread dump and investigate blocked threads"
+
+      # Yüksek GC duraklaması
+      - alert: HighGCPause
+        expr: |
+          (
+            rate(jvm_gc_pause_seconds_sum{job=~"order-service|inventory-service|payment-service"}[5m])
+            /
+            rate(jvm_gc_pause_seconds_count{job=~"order-service|inventory-service|payment-service"}[5m])
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High GC pause duration on {{ $labels.job }}"
+          description: "Average GC pause is {{ $value | humanizeDuration }} (threshold: 500ms)"
+          impact: "Application pauses affecting response times"
+          action: "Review GC settings, check for memory pressure"
+
+      # Sık GC çalışması
+      - alert: FrequentGC
+        expr: |
+          rate(jvm_gc_pause_seconds_count{job=~"order-service|inventory-service|payment-service"}[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Frequent GC on {{ $labels.job }}"
+          description: "GC is running {{ $value }} times per second (threshold: 0.5/s)"
+          impact: "Excessive garbage collection reduces throughput"
+          action: "Check for excessive object allocation, consider increasing heap size"
+
+  # ====================================================================
+  # GROUP 5: LOG ERRORS & UPTIME
+  # ====================================================================
+  - name: logs_uptime
+    interval: 30s
+    rules:
+
+      # Yüksek hata log oranı
+      - alert: HighErrorLogRate
+        expr: |
+          rate(logback_events_total{job=~"order-service|inventory-service|payment-service", level="error"}[5m]) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error log rate on {{ $labels.job }}"
+          description: "Error log rate is {{ $value }} per second (threshold: 0.5/s)"
+          impact: "Application is producing many errors"
+          action: "Check application logs for recurring errors"
+
+      # Servis yakın zamanda yeniden başladı
+      - alert: ServiceRecentlyRestarted
+        expr: |
+          process_uptime_seconds{job=~"order-service|inventory-service|payment-service"} < 300
+        labels:
+          severity: info
+        annotations:
+          summary: "Service {{ $labels.job }} recently restarted"
+          description: "{{ $labels.job }} has been running for only {{ $value | humanizeDuration }}"
+          action: "Check if restart was planned or due to a crash"

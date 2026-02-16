@@ -1,0 +1,6 @@
+com/ecommerce/inventory/InventoryServiceApplication.class
+com/ecommerce/inventory/controller/InventoryController.class
+com/ecommerce/inventory/service/InventoryService.class
+com/ecommerce/inventory/model/Inventory$InventoryBuilder.class
+com/ecommerce/inventory/config/MetricsConfig.class
+com/ecommerce/inventory/model/Inventory.class

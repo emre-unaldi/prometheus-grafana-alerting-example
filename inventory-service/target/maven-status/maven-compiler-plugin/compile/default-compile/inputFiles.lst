@@ -1,0 +1,5 @@
+/Users/emreunaldi/Desktop/prometheus-grafana/microservices-monitoring/inventory-service/src/main/java/com/ecommerce/inventory/InventoryServiceApplication.java
+/Users/emreunaldi/Desktop/prometheus-grafana/microservices-monitoring/inventory-service/src/main/java/com/ecommerce/inventory/config/MetricsConfig.java
+/Users/emreunaldi/Desktop/prometheus-grafana/microservices-monitoring/inventory-service/src/main/java/com/ecommerce/inventory/controller/InventoryController.java
+/Users/emreunaldi/Desktop/prometheus-grafana/microservices-monitoring/inventory-service/src/main/java/com/ecommerce/inventory/model/Inventory.java
+/Users/emreunaldi/Desktop/prometheus-grafana/microservices-monitoring/inventory-service/src/main/java/com/ecommerce/inventory/service/InventoryService.java
